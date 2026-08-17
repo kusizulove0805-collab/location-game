@@ -48,7 +48,7 @@
 <h1>📍 Location Game</h1>
 
 <p>
-  このゲームでは、ゲームプレイのために<br>
+  このゲームではゲームプレイのために<br>
   <strong>現在地をゲーム管理者へ共有します。</strong>
 </p>
 
@@ -87,37 +87,28 @@ import {
 from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 
-/*
-================================
-Firebase設定
-================================
-
-Firebaseコンソール
-
-プロジェクト設定
-↓
-マイアプリ
-↓
-Webアプリ
-
-から取得した値を入れる。
-*/
+/* ================================
+   Firebase設定
+   ================================ */
 
 const firebaseConfig = {
 
-  apiKey: "ここにAPIキー",
+  apiKey: "AIzaSyCEqCLbtEA4PDlSJQVRoPQM_L_nNPalVkI",
 
-  authDomain: "ここにAuthDomain",
+  authDomain: "location-game-89add.firebaseapp.com",
 
-  databaseURL: "ここにDatabaseURL",
+  databaseURL:
+    "https://location-game-89add-default-rtdb.asia-southeast1.firebasedatabase.app",
 
-  projectId: "ここにProjectID",
+  projectId: "location-game-89add",
 
-  storageBucket: "ここにStorageBucket",
+  storageBucket:
+    "location-game-89add.firebasestorage.app",
 
-  messagingSenderId: "ここにMessagingSenderId",
+  messagingSenderId: "615313457283",
 
-  appId: "ここにAppID"
+  appId:
+    "1:615313457283:web:6fb6ac8a531a757ee19bb6"
 
 };
 
@@ -133,15 +124,12 @@ const database =
 
 
 let watchId = null;
-
 let playerId = null;
 
 
-/*
-================================
-匿名ログイン
-================================
-*/
+/* ================================
+   匿名ログイン
+   ================================ */
 
 async function login() {
 
@@ -158,6 +146,8 @@ async function login() {
       playerId
     );
 
+    return true;
+
   } catch (error) {
 
     console.error(error);
@@ -165,235 +155,282 @@ async function login() {
     document.getElementById(
       "status"
     ).textContent =
-      "ログインに失敗しました。";
+      "参加者登録に失敗しました。";
+
+    return false;
 
   }
 
 }
 
 
-/*
-================================
-共有開始
-================================
-*/
+/* ================================
+   現在地共有開始
+   ================================ */
 
-document.getElementById(
-  "startButton"
-).addEventListener(
-  "click",
-  async function() {
+document
+  .getElementById("startButton")
+  .addEventListener(
+    "click",
+    async function() {
 
-    if (!playerId) {
+      if (!playerId) {
 
-      await login();
+        const success =
+          await login();
 
-    }
+        if (!success) {
+          return;
+        }
 
-    if (!navigator.geolocation) {
+      }
+
+
+      if (!navigator.geolocation) {
+
+        document.getElementById(
+          "status"
+        ).textContent =
+          "この端末は位置情報に対応していません。";
+
+        return;
+
+      }
+
 
       document.getElementById(
         "status"
       ).textContent =
-        "位置情報に対応していません。";
+        "📍 現在地を取得しています…";
 
-      return;
+
+      watchId =
+        navigator.geolocation.watchPosition(
+
+          async function(position) {
+
+            const latitude =
+              position.coords.latitude;
+
+            const longitude =
+              position.coords.longitude;
+
+
+            /* Firebaseへ現在地を送信 */
+
+            try {
+
+              await set(
+
+                ref(
+                  database,
+                  "players/" + playerId
+                ),
+
+                {
+                  latitude:
+                    latitude,
+
+                  longitude:
+                    longitude,
+
+                  updatedAt:
+                    Date.now()
+                }
+
+              );
+
+            } catch (error) {
+
+              console.error(error);
+
+              document.getElementById(
+                "status"
+              ).textContent =
+                "現在地の送信に失敗しました。";
+
+              return;
+
+            }
+
+
+            document.getElementById(
+              "status"
+            ).textContent =
+              "🟢 現在地を管理者へ共有中";
+
+
+            /* 現在地をGoogleマップで表示 */
+
+            const mapUrl =
+              "https://www.google.com/maps?q=" +
+              latitude +
+              "," +
+              longitude +
+              "&output=embed";
+
+
+            document.getElementById(
+              "map"
+            ).innerHTML =
+
+              `
+              <iframe
+                src="${mapUrl}"
+                width="100%"
+                height="100%"
+                style="border:0;"
+                loading="lazy">
+              </iframe>
+              `;
+
+
+            /* ゲーム本体へ現在地を渡す */
+
+            startGame(
+              latitude,
+              longitude
+            );
+
+          },
+
+
+          function(error) {
+
+            console.error(error);
+
+            let message =
+              "位置情報を取得できませんでした。";
+
+
+            if (error.code === 1) {
+
+              message =
+                "位置情報の利用が許可されていません。";
+
+            }
+
+
+            if (error.code === 2) {
+
+              message =
+                "現在地を取得できませんでした。";
+
+            }
+
+
+            if (error.code === 3) {
+
+              message =
+                "位置情報の取得がタイムアウトしました。";
+
+            }
+
+
+            document.getElementById(
+              "status"
+            ).textContent =
+              message;
+
+          },
+
+
+          {
+            enableHighAccuracy:
+              true,
+
+            maximumAge:
+              5000,
+
+            timeout:
+              10000
+          }
+
+        );
+
+
+      document.getElementById(
+        "startButton"
+      ).style.display =
+        "none";
+
+
+      document.getElementById(
+        "stopButton"
+      ).style.display =
+        "inline-block";
 
     }
+  );
 
 
-    document.getElementById(
-      "status"
-    ).textContent =
-      "位置情報を取得しています…";
+/* ================================
+   現在地共有停止
+   ================================ */
+
+document
+  .getElementById("stopButton")
+  .addEventListener(
+    "click",
+    async function() {
+
+      if (watchId !== null) {
+
+        navigator.geolocation.clearWatch(
+          watchId
+        );
+
+        watchId = null;
+
+      }
 
 
-    watchId =
-      navigator.geolocation.watchPosition(
+      if (playerId) {
 
-        async function(position) {
+        try {
 
-          const latitude =
-            position.coords.latitude;
-
-          const longitude =
-            position.coords.longitude;
-
-
-          /*
-          Firebaseへ送信
-          */
-
-          await set(
+          await remove(
 
             ref(
               database,
               "players/" + playerId
-            ),
-
-            {
-
-              latitude:
-                latitude,
-
-              longitude:
-                longitude,
-
-              updatedAt:
-                Date.now()
-
-            }
+            )
 
           );
 
+        } catch (error) {
 
-          document.getElementById(
-            "status"
-          ).textContent =
-            "🟢 現在地を管理者へ共有中";
-
-
-          /*
-          現在地をGoogleマップ表示
-          */
-
-          const mapUrl =
-            "https://www.google.com/maps?q=" +
-            latitude +
-            "," +
-            longitude +
-            "&output=embed";
-
-
-          document.getElementById(
-            "map"
-          ).innerHTML =
-
-            `
-            <iframe
-              src="${mapUrl}"
-              width="100%"
-              height="100%"
-              style="border:0;"
-              loading="lazy">
-            </iframe>
-            `;
-
-
-          /*
-          後でゲームを接続
-          */
-
-          startGame(
-            latitude,
-            longitude
-          );
-
-        },
-
-        function(error) {
-
-          document.getElementById(
-            "status"
-          ).textContent =
-            "位置情報を取得できませんでした。";
-
-        },
-
-        {
-
-          enableHighAccuracy:
-            true,
-
-          maximumAge:
-            5000,
-
-          timeout:
-            10000
+          console.error(error);
 
         }
 
-      );
+      }
 
 
-    document.getElementById(
-      "startButton"
-    ).style.display =
-      "none";
+      document.getElementById(
+        "status"
+      ).textContent =
+        "🔴 現在地の共有を停止しました";
 
 
-    document.getElementById(
-      "stopButton"
-    ).style.display =
-      "inline-block";
-
-  }
-);
+      document.getElementById(
+        "startButton"
+      ).style.display =
+        "inline-block";
 
 
-/*
-================================
-共有停止
-================================
-*/
-
-document.getElementById(
-  "stopButton"
-).addEventListener(
-  "click",
-  async function() {
-
-    if (watchId !== null) {
-
-      navigator.geolocation.clearWatch(
-        watchId
-      );
-
-      watchId = null;
+      document.getElementById(
+        "stopButton"
+      ).style.display =
+        "none";
 
     }
+  );
 
 
-    if (playerId) {
-
-      await remove(
-
-        ref(
-          database,
-          "players/" + playerId
-        )
-
-      );
-
-    }
-
-
-    document.getElementById(
-      "status"
-    ).textContent =
-      "🔴 現在地の共有を停止しました";
-
-
-    document.getElementById(
-      "startButton"
-    ).style.display =
-      "inline-block";
-
-
-    document.getElementById(
-      "stopButton"
-    ).style.display =
-      "none";
-
-  }
-);
-
-
-/*
-================================
-ゲーム本体
-================================
-*/
+/* ================================
+   ゲーム本体
+   ================================ */
 
 function startGame(
   latitude,
@@ -405,23 +442,17 @@ function startGame(
   );
 
   console.log(
-    "緯度:",
-    latitude
-  );
-
-  console.log(
-    "経度:",
+    "現在地:",
+    latitude,
     longitude
   );
 
 
   /*
-  後で君のゲームコードを
-  ここに接続する
+    ここに後からゲーム本体のコードを入れる
   */
 
 }
-
 
 </script>
 
