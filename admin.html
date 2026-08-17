@@ -1,71 +1,198 @@
 <!DOCTYPE html><html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Location Game</title>  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Location Game - 管理者</title>  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: sans-serif;
+      background: #f3f4f6;
+      color: #222;
+    }
+
+    header {
+      background: white;
+      padding: 16px;
       text-align: center;
-      background: #f5f5f5;
+      border-bottom: 1px solid #ddd;
     }
 
-    h1 {
-      margin: 25px 0 15px;
+    header h1 {
+      margin: 0;
+      font-size: 23px;
     }
 
-    #status {
-      padding: 15px;
-      font-weight: bold;
+    #login {
+      width: calc(100% - 30px);
+      max-width: 420px;
+      margin: 40px auto;
+      padding: 24px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    #login h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
     }
 
     button {
-      padding: 14px 22px;
-      margin: 10px;
+      width: 100%;
+      padding: 13px;
+      margin-top: 10px;
       border: none;
       border-radius: 8px;
-      font-size: 17px;
+      font-size: 16px;
       cursor: pointer;
     }
 
-    #stopButton {
-      display: none;
+    #loginButton {
+      background: #222;
+      color: white;
     }
 
-    #gameArea {
-      margin: 20px;
+    #logoutButton {
+      background: #c62828;
+      color: white;
+      max-width: 300px;
     }
-  </style></head><body><h1>📍 Location Game</h1><p>
-  ゲームを開始すると、ゲーム中の現在地が<br>
-  管理者へ共有されます。
-</p><button id="startButton">
-  🎮 ゲームを開始
-</button><button id="stopButton">
-  🛑 管理者への共有を停止
-</button><p id="status">
-  ゲームを開始していません
-</p><div id="gameArea">
-  <!-- ここにゲーム本体を入れる -->
-</div><script type="module">
+
+    #loginStatus {
+      text-align: center;
+      font-weight: bold;
+    }
+
+    #game {
+      display: none;
+      padding: 15px;
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    #status {
+      padding: 14px;
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      white-space: pre-wrap;
+    }
+
+    #map {
+      width: 100%;
+      height: 55vh;
+      min-height: 350px;
+      background: #ddd;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    #players {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+    }
+
+    .player {
+      padding: 15px 5px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .player:last-child {
+      border-bottom: none;
+    }
+
+    .player-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .online {
+      color: #168a35;
+      font-weight: bold;
+    }
+
+    .offline {
+      color: #c62828;
+      font-weight: bold;
+    }
+
+    .map-button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 9px 13px;
+      border-radius: 7px;
+      background: #222;
+      color: white;
+      text-decoration: none;
+    }
+
+  </style></head><body><header>
+  <h1>🎮 Location Game 管理者</h1>
+</header><div id="login">  <h2>🔐 管理者ログイン</h2><input
+id="email"
+type="email"
+placeholder="メールアドレス"
+
+«»
+
+<input
+id="password"
+type="password"
+placeholder="パスワード"
+
+«»
+
+  <button id="loginButton">
+    ログイン
+  </button>  <p id="loginStatus"></p></div><div id="game">  <div id="status">
+    📡 管理者として認証を確認しています…
+  </div>  <button id="logoutButton">
+    ログアウト
+  </button>  <div id="map"></div>  <div id="players"></div></div><script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script><script type="module">
 
 import { initializeApp }
 from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
 import {
   getAuth,
-  signInAnonymously
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
 }
 from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 import {
   getDatabase,
   ref,
-  set
+  onValue
 }
 from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 
 /* ================================
-   Firebase設定
+   Firebase
    ================================ */
 
 const firebaseConfig = {
@@ -104,425 +231,421 @@ const database =
   getDatabase(app);
 
 
-let watchId = null;
-let playerId = null;
-let gameStarted = false;
+/* ================================
+   地図
+   ================================ */
+
+const map =
+  L.map("map")
+   .setView(
+     [35.681236, 139.767125],
+     5
+   );
+
+
+L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {
+    maxZoom: 19,
+    attribution:
+      "&copy; OpenStreetMap contributors"
+  }
+).addTo(map);
+
+
+let markers = {};
 
 
 /* ================================
-   匿名ログイン
+   ログイン
    ================================ */
 
-async function login() {
+document
+  .getElementById("loginButton")
+  .addEventListener(
+    "click",
+    async () => {
 
-  try {
+      const email =
+        document
+          .getElementById("email")
+          .value
+          .trim();
 
-    const result =
-      await signInAnonymously(auth);
+      const password =
+        document
+          .getElementById("password")
+          .value;
 
-    playerId =
-      result.user.uid;
+      const status =
+        document.getElementById(
+          "loginStatus"
+        );
 
-    return true;
 
-  } catch (error) {
+      status.textContent =
+        "ログインしています…";
 
-    console.error(error);
+
+      try {
+
+        await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "❌ ログイン失敗: " +
+          error.code;
+
+      }
+
+    }
+  );
+
+
+/* ================================
+   ログアウト
+   ================================ */
+
+document
+  .getElementById("logoutButton")
+  .addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        await signOut(auth);
+
+      } catch (error) {
+
+        console.error(error);
+
+      }
+
+    }
+  );
+
+
+/* ================================
+   認証状態
+   ================================ */
+
+onAuthStateChanged(
+  auth,
+  (user) => {
+
+    if (!user) {
+
+      document.getElementById(
+        "login"
+      ).style.display =
+        "block";
+
+      document.getElementById(
+        "game"
+      ).style.display =
+        "none";
+
+      return;
+
+    }
+
+
+    document.getElementById(
+      "login"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "game"
+    ).style.display =
+      "block";
+
 
     document.getElementById(
       "status"
     ).textContent =
-      "参加者登録に失敗しました。";
+      "🔐 認証成功\n" +
+      "メール: " +
+      (user.email || "不明") +
+      "\n\n" +
+      "📡 参加者情報を読み込んでいます…";
 
-    return false;
+
+    loadPlayers();
 
   }
-
-}
+);
 
 
 /* ================================
-   ゲーム開始
+   参加者読み込み
    ================================ */
 
-document
-  .getElementById("startButton")
-  .addEventListener(
-    "click",
-    async function() {
+function loadPlayers() {
 
-      if (gameStarted) {
-        return;
-      }
+  const playersRef =
+    ref(
+      database,
+      "players"
+    );
 
 
-      if (!playerId) {
+  onValue(
 
-        const success =
-          await login();
+    playersRef,
 
-        if (!success) {
-          return;
-        }
+    (snapshot) => {
 
-      }
+      const data =
+        snapshot.val() || {};
 
 
-      if (!navigator.geolocation) {
-
-        document.getElementById(
-          "status"
-        ).textContent =
-          "この端末は位置情報に対応していません。";
-
-        return;
-
-      }
+      const ids =
+        Object.keys(data);
 
 
       document.getElementById(
         "status"
       ).textContent =
-        "📍 位置情報を確認しています…";
+        "🟢 読み込み成功\n" +
+        "参加者: " +
+        ids.length +
+        "人";
 
 
-      /*
-       * 最初の位置情報を取得して
-       * 精度を確認する
-       */
+      const container =
+        document.getElementById(
+          "players"
+        );
 
-      navigator.geolocation.getCurrentPosition(
 
-        function(position) {
+      container.innerHTML = "";
 
-          const accuracy =
-            position.coords.accuracy;
 
+      Object.values(markers)
+        .forEach(
+          marker =>
+            map.removeLayer(
+              marker
+            )
+        );
 
-          /*
-           * めっちょゆるめの判定
-           *
-           * 500m以内ならゲーム開始
-           */
 
-          if (accuracy > 500) {
+      markers = {};
 
-            document.getElementById(
-              "status"
-            ).textContent =
-              "📍 位置情報が少し粗すぎます。正確な位置情報を許可してください。";
 
-            return;
+      if (ids.length === 0) {
 
-          }
+        container.innerHTML =
+          "<p>現在、参加者はいません。</p>";
 
+        return;
 
-          /*
-           * ゲーム開始
-           */
+      }
 
-          gameStarted = true;
 
+      ids.forEach(
+        id => {
 
-          document.getElementById(
-            "status"
-          ).textContent =
-            "🟢 ゲーム中・管理者へ共有中";
+          const player =
+            data[id];
 
 
-          document.getElementById(
-            "startButton"
-          ).style.display =
-            "none";
-
-
-          document.getElementById(
-            "stopButton"
-          ).style.display =
-            "inline-block";
-
-
-          /*
-           * 継続的な位置情報取得
-           */
-
-          startLocationTracking();
-
-        },
-
-        function(error) {
-
-          console.error(error);
-
-          let message =
-            "位置情報を取得できませんでした。";
-
-
-          if (error.code === 1) {
-
-            message =
-              "📍 位置情報が拒否されています。ゲームをするには位置情報を許可してください。";
-
-          }
-
-
-          if (error.code === 2) {
-
-            message =
-              "📍 現在地を取得できませんでした。";
-
-          }
-
-
-          if (error.code === 3) {
-
-            message =
-              "📍 位置情報の取得がタイムアウトしました。";
-
-          }
-
-
-          document.getElementById(
-            "status"
-          ).textContent =
-            message;
-
-        },
-
-        {
-
-          enableHighAccuracy:
-            true,
-
-          maximumAge:
-            5000,
-
-          timeout:
-            15000
-
-        }
-
-      );
-
-    }
-  );
-
-
-/* ================================
-   継続的な位置情報取得
-   ================================ */
-
-function startLocationTracking() {
-
-  if (watchId !== null) {
-
-    navigator.geolocation.clearWatch(
-      watchId
-    );
-
-  }
-
-
-  watchId =
-    navigator.geolocation.watchPosition(
-
-      async function(position) {
-
-        const latitude =
-          position.coords.latitude;
-
-        const longitude =
-          position.coords.longitude;
-
-        const accuracy =
-          position.coords.accuracy;
-
-
-        /*
-         * Firebaseへ保存
-         */
-
-        if (playerId) {
-
-          try {
-
-            await set(
-
-              ref(
-                database,
-                "players/" + playerId
-              ),
-
-              {
-
-                latitude:
-                  latitude,
-
-                longitude:
-                  longitude,
-
-                accuracy:
-                  accuracy,
-
-                updatedAt:
-                  Date.now(),
-
-                sharing:
-                  true
-
-              }
-
+          const latitude =
+            Number(
+              player.latitude
             );
 
-          } catch (error) {
+          const longitude =
+            Number(
+              player.longitude
+            );
 
-            console.error(error);
+
+          const valid =
+            Number.isFinite(
+              latitude
+            ) &&
+            Number.isFinite(
+              longitude
+            );
+
+
+          const sharing =
+            player.sharing === true;
+
+
+          const updated =
+            player.updatedAt
+              ? new Date(
+                  player.updatedAt
+                ).toLocaleString(
+                  "ja-JP"
+                )
+              : "不明";
+
+
+          if (valid) {
+
+            const marker =
+              L.marker(
+                [
+                  latitude,
+                  longitude
+                ]
+              ).addTo(map);
+
+
+            marker.bindPopup(
+              `
+              <strong>👤 参加者</strong>
+              <br>
+              ${sharing
+                ? "🟢 共有中"
+                : "🔴 共有停止"}
+              <br>
+              最終更新: ${updated}
+              `
+            );
+
+
+            markers[id] =
+              marker;
 
           }
 
-        }
+
+          const div =
+            document.createElement(
+              "div"
+            );
 
 
-        /*
-         * ゲーム本体へ位置情報を渡す
-         */
-
-        startGame(
-          latitude,
-          longitude,
-          accuracy
-        );
-
-      },
-
-      function(error) {
-
-        console.error(error);
-
-      },
-
-      {
-
-        enableHighAccuracy:
-          true,
-
-        maximumAge:
-          5000,
-
-        timeout:
-          15000
-
-      }
-
-    );
-
-}
+          div.className =
+            "player";
 
 
-/* ================================
-   管理者への共有停止
-   ================================ */
+          div.innerHTML = `
 
-document
-  .getElementById("stopButton")
-  .addEventListener(
-    "click",
-    async function() {
+            <div class="player-title">
+              👤 参加者
+            </div>
 
-      if (watchId !== null) {
+            <div>
+              ${
+                sharing
+                  ? '<span class="online">🟢 共有中</span>'
+                  : '<span class="offline">🔴 共有停止</span>'
+              }
+            </div>
 
-        navigator.geolocation.clearWatch(
-          watchId
-        );
+            <div>
+              緯度：
+              ${
+                valid
+                  ? latitude
+                  : "取得なし"
+              }
+            </div>
 
-        watchId = null;
+            <div>
+              経度：
+              ${
+                valid
+                  ? longitude
+                  : "取得なし"
+              }
+            </div>
 
-      }
+            <div>
+              最終更新：
+              ${updated}
+            </div>
+
+            ${
+              valid
+                ? `
+                  <a
+                    class="map-button"
+                    target="_blank"
+                    href="https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}"
+                  >
+                    🗺️ 地図で開く
+                  </a>
+                `
+                : ""
+            }
+
+          `;
 
 
-      /*
-       * 位置情報そのものは削除しない。
-       *
-       * 最後に取得した位置を
-       * 管理者が確認できるようにする。
-       */
-
-      if (playerId) {
-
-        try {
-
-          await set(
-
-            ref(
-              database,
-              "players/" +
-              playerId +
-              "/sharing"
-            ),
-
-            false
-
+          container.appendChild(
+            div
           );
 
-        } catch (error) {
-
-          console.error(error);
-
         }
+      );
+
+
+      const validMarkers =
+        Object.values(
+          markers
+        );
+
+
+      if (
+        validMarkers.length > 0
+      ) {
+
+        const group =
+          L.featureGroup(
+            validMarkers
+          );
+
+
+        map.fitBounds(
+          group.getBounds(),
+          {
+            padding: [
+              40,
+              40
+            ]
+          }
+        );
 
       }
 
+    },
 
-      gameStarted = false;
+    (error) => {
+
+      console.error(
+        "Firebase Database Error:",
+        error
+      );
 
 
       document.getElementById(
         "status"
       ).textContent =
-        "🔴 管理者への共有を停止しました";
-
-
-      document.getElementById(
-        "startButton"
-      ).style.display =
-        "inline-block";
-
-
-      document.getElementById(
-        "stopButton"
-      ).style.display =
-        "none";
+        "❌ Firebase読み込みエラー\n\n" +
+        "コード: " +
+        error.code +
+        "\n" +
+        "内容: " +
+        error.message;
 
     }
+
   );
-
-
-/* ================================
-   ゲーム本体
-   ================================ */
-
-function startGame(
-  latitude,
-  longitude,
-  accuracy
-) {
-
-  console.log(
-    "現在地:",
-    latitude,
-    longitude
-  );
-
-  console.log(
-    "位置精度:",
-    accuracy,
-    "m"
-  );
-
-
-  /*
-   * ここにゲーム本体の処理を追加する。
-   */
 
 }
 
