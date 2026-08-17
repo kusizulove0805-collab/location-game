@@ -1,108 +1,44 @@
-<!DOCTYPE html><html lang="ja">
+<!DOCTYPE html>
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Location Game - 管理者</title>  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  >  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    * {
-      box-sizing: border-box;
-    }
+  <title>位置ゲーム - 管理者</title>
 
+  <style>
     body {
       margin: 0;
       font-family: sans-serif;
-      background: #f3f4f6;
-      color: #222;
+      background: #f5f5f5;
     }
 
     header {
       background: white;
-      padding: 16px;
+      padding: 15px;
       text-align: center;
-      border-bottom: 1px solid #ddd;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 23px;
     }
 
     #login {
-      width: calc(100% - 30px);
-      max-width: 420px;
-      margin: 40px auto;
-      padding: 24px;
+      max-width: 400px;
+      margin: 30px auto;
+      padding: 20px;
       background: white;
-      border-radius: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-
-    #login h2 {
-      margin-top: 0;
-      text-align: center;
-    }
-
-    input {
-      width: 100%;
-      padding: 13px;
-      margin: 7px 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-
-    button {
-      width: 100%;
-      padding: 13px;
-      margin-top: 10px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #loginButton {
-      background: #222;
-      color: white;
-    }
-
-    #logoutButton {
-      background: #c62828;
-      color: white;
-      max-width: 300px;
-    }
-
-    #loginStatus {
-      text-align: center;
-      font-weight: bold;
+      border-radius: 12px;
     }
 
     #game {
       display: none;
       padding: 15px;
-      max-width: 1100px;
-      margin: auto;
     }
 
-    #status {
-      padding: 14px;
-      background: white;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      font-weight: bold;
-      white-space: pre-wrap;
-    }
-
-    #map {
+    input,
+    button {
       width: 100%;
-      height: 55vh;
-      min-height: 350px;
-      background: #ddd;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 18px;
+      box-sizing: border-box;
+      padding: 12px;
+      margin: 6px 0;
+      font-size: 16px;
     }
 
     #players {
@@ -116,469 +52,362 @@
       border-bottom: 1px solid #ddd;
     }
 
-    .player:last-child {
-      border-bottom: none;
-    }
-
-    .player-title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .online {
-      color: #168a35;
+    #status {
       font-weight: bold;
     }
 
-    .offline {
-      color: #c62828;
+    .error {
+      color: #c00;
       font-weight: bold;
     }
 
-    .map-button {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 9px 13px;
-      border-radius: 7px;
-      background: #222;
-      color: white;
-      text-decoration: none;
+    .success {
+      color: #080;
+      font-weight: bold;
     }
+  </style>
+</head>
 
-  </style></head><body><header>
-  <h1>🎮 Location Game 管理者</h1>
-</header><div id="login">  <h2>🔐 管理者ログイン</h2><input
-id="email"
-type="email"
-placeholder="メールアドレス"
+<body>
 
-«»
+<header>
+  <h1>🎮 ゲーム管理者</h1>
+</header>
 
-<input
-id="password"
-type="password"
-placeholder="パスワード"
+<!-- 管理者ログイン -->
+<div id="login">
 
-«»
+  <h2>🔐 管理者ログイン</h2>
+
+  <input
+    id="email"
+    type="email"
+    placeholder="メールアドレス"
+    autocomplete="username"
+  >
+
+  <input
+    id="password"
+    type="password"
+    placeholder="パスワード"
+    autocomplete="current-password"
+  >
 
   <button id="loginButton">
     ログイン
-  </button>  <p id="loginStatus"></p></div><div id="game">  <div id="status">
-    📡 管理者として認証を確認しています…
-  </div>  <button id="logoutButton">
+  </button>
+
+  <p id="loginStatus"></p>
+
+</div>
+
+<!-- 管理画面 -->
+<div id="game">
+
+  <p id="status"></p>
+
+  <button id="logoutButton">
     ログアウト
-  </button>  <div id="map"></div>  <div id="players"></div></div><script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script><script type="module">
+  </button>
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  <div id="players"></div>
 
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-}
-from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+</div>
 
-import {
-  getDatabase,
-  ref,
-  onValue
-}
-from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+<script type="module">
 
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
-/* ================================
-   Firebase
-   ================================ */
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
-const firebaseConfig = {
-
-  apiKey:
-    "AIzaSyCEqCLbtEA4PDlSJQVRoPQM_L_nNPalVkI",
-
-  authDomain:
-    "location-game-89add.firebaseapp.com",
-
-  databaseURL:
-    "https://location-game-89add-default-rtdb.asia-southeast1.firebasedatabase.app",
-
-  projectId:
-    "location-game-89add",
-
-  storageBucket:
-    "location-game-89add.firebasestorage.app",
-
-  messagingSenderId:
-    "615313457283",
-
-  appId:
-    "1:615313457283:web:6fb6ac8a531a757ee19bb6"
-
-};
+  import {
+    getDatabase,
+    ref,
+    onValue
+  } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 
-const app =
-  initializeApp(firebaseConfig);
+  /* ================================
+     Firebase設定
+     ================================= */
 
-const auth =
-  getAuth(app);
-
-const database =
-  getDatabase(app);
-
-
-/* ================================
-   地図
-   ================================ */
-
-const map =
-  L.map("map")
-   .setView(
-     [35.681236, 139.767125],
-     5
-   );
+  const firebaseConfig = {
+    apiKey: "AIzaSyCEqCLbtEA4PDlSJQVRoPQM_L_nNPalVkI",
+    authDomain: "location-game-89add.firebaseapp.com",
+    databaseURL: "https://location-game-89add-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "location-game-89add",
+    storageBucket: "location-game-89add.firebasestorage.app",
+    messagingSenderId: "615313457283",
+    appId: "1:615313457283:web:6fb6ac8a531a757ee19bb6"
+  };
 
 
-L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-    maxZoom: 19,
-    attribution:
-      "&copy; OpenStreetMap contributors"
-  }
-).addTo(map);
+  const app = initializeApp(firebaseConfig);
+
+  const auth = getAuth(app);
+
+  const database = getDatabase(app);
 
 
-let markers = {};
+  /* ================================
+     HTML要素
+     ================================= */
+
+  const login = document.getElementById("login");
+  const game = document.getElementById("game");
+
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+
+  const loginButton = document.getElementById("loginButton");
+  const logoutButton = document.getElementById("logoutButton");
+
+  const loginStatus = document.getElementById("loginStatus");
+
+  const status = document.getElementById("status");
+  const playersContainer = document.getElementById("players");
 
 
-/* ================================
-   ログイン
-   ================================ */
+  /* ================================
+     管理者ログイン
+     ================================= */
 
-document
-  .getElementById("loginButton")
-  .addEventListener(
-    "click",
-    async () => {
+  loginButton.addEventListener("click", async () => {
 
-      const email =
-        document
-          .getElementById("email")
-          .value
-          .trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
 
-      const password =
-        document
-          .getElementById("password")
-          .value;
+    if (!email || !password) {
 
-      const status =
-        document.getElementById(
-          "loginStatus"
-        );
+      loginStatus.textContent =
+        "メールアドレスとパスワードを入力してください。";
+
+      loginStatus.className = "error";
+
+      return;
+    }
 
 
-      status.textContent =
-        "ログインしています…";
+    loginButton.disabled = true;
+
+    loginStatus.textContent =
+      "ログインしています…";
+
+    loginStatus.className = "";
 
 
-      try {
+    try {
 
-        await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-      } catch (error) {
+      loginStatus.textContent =
+        "ログイン成功！";
 
-        console.error(error);
+      loginStatus.className = "success";
 
-        status.textContent =
-          "❌ ログイン失敗: " +
-          error.code;
 
-      }
+    } catch (error) {
+
+      console.error(error);
+
+      loginStatus.textContent =
+        "ログインに失敗しました: " + error.message;
+
+      loginStatus.className = "error";
+
+      loginButton.disabled = false;
 
     }
-  );
+
+  });
 
 
-/* ================================
-   ログアウト
-   ================================ */
+  /* ================================
+     ログアウト
+     ================================= */
 
-document
-  .getElementById("logoutButton")
-  .addEventListener(
-    "click",
-    async () => {
+  logoutButton.addEventListener("click", async () => {
 
-      try {
+    try {
 
-        await signOut(auth);
+      await signOut(auth);
 
-      } catch (error) {
+    } catch (error) {
 
-        console.error(error);
-
-      }
+      console.error(error);
 
     }
-  );
+
+  });
 
 
-/* ================================
-   認証状態
-   ================================ */
+  /* ================================
+     ログイン状態監視
+     ================================= */
 
-onAuthStateChanged(
-  auth,
-  (user) => {
+  onAuthStateChanged(auth, (user) => {
+
+    /*
+     * ログインしていない場合
+     * → 参加者情報を絶対に読み込まない
+     */
 
     if (!user) {
 
-      document.getElementById(
-        "login"
-      ).style.display =
-        "block";
+      login.style.display = "block";
+      game.style.display = "none";
 
-      document.getElementById(
-        "game"
-      ).style.display =
-        "none";
+      playersContainer.innerHTML = "";
+
+      status.textContent = "";
 
       return;
-
     }
 
 
-    document.getElementById(
-      "login"
-    ).style.display =
-      "none";
+    /*
+     * ログイン済みの場合だけ管理画面を表示
+     */
 
-    document.getElementById(
-      "game"
-    ).style.display =
-      "block";
+    login.style.display = "none";
+    game.style.display = "block";
 
 
-    document.getElementById(
-      "status"
-    ).textContent =
-      "🔐 認証成功\n" +
-      "メール: " +
-      (user.email || "不明") +
-      "\n\n" +
+    status.textContent =
       "📡 参加者情報を読み込んでいます…";
+
+    status.className = "";
 
 
     loadPlayers();
 
-  }
-);
+  });
 
 
-/* ================================
-   参加者読み込み
-   ================================ */
+  /* ================================
+     参加者情報読み込み
+     ================================= */
 
-function loadPlayers() {
+  function loadPlayers() {
 
-  const playersRef =
-    ref(
-      database,
-      "players"
-    );
+    const playersRef =
+      ref(database, "players");
 
 
-  onValue(
+    onValue(
+      playersRef,
 
-    playersRef,
+      (snapshot) => {
 
-    (snapshot) => {
+        const data = snapshot.val() || {};
 
-      const data =
-        snapshot.val() || {};
-
-
-      const ids =
-        Object.keys(data);
+        const ids = Object.keys(data);
 
 
-      document.getElementById(
-        "status"
-      ).textContent =
-        "🟢 読み込み成功\n" +
-        "参加者: " +
-        ids.length +
-        "人";
+        playersContainer.innerHTML = "";
 
 
-      const container =
-        document.getElementById(
-          "players"
-        );
+        status.textContent =
+          `🟢 現在登録されている参加者：${ids.length}人`;
+
+        status.className = "success";
 
 
-      container.innerHTML = "";
+        if (ids.length === 0) {
+
+          playersContainer.innerHTML =
+            "<p>現在の参加者はいません。</p>";
+
+          return;
+        }
 
 
-      Object.values(markers)
-        .forEach(
-          marker =>
-            map.removeLayer(
-              marker
-            )
-        );
+        ids.forEach((id) => {
 
-
-      markers = {};
-
-
-      if (ids.length === 0) {
-
-        container.innerHTML =
-          "<p>現在、参加者はいません。</p>";
-
-        return;
-
-      }
-
-
-      ids.forEach(
-        id => {
-
-          const player =
-            data[id];
+          const player = data[id] || {};
 
 
           const latitude =
-            Number(
-              player.latitude
-            );
+            player.latitude ?? "不明";
 
           const longitude =
-            Number(
-              player.longitude
-            );
+            player.longitude ?? "不明";
 
-
-          const valid =
-            Number.isFinite(
-              latitude
-            ) &&
-            Number.isFinite(
-              longitude
-            );
-
+          const accuracy =
+            player.accuracy ?? "不明";
 
           const sharing =
-            player.sharing === true;
-
+            player.sharing ?? "不明";
 
           const updated =
             player.updatedAt
-              ? new Date(
-                  player.updatedAt
-                ).toLocaleString(
-                  "ja-JP"
-                )
+              ? new Date(player.updatedAt).toLocaleString()
               : "不明";
 
 
-          if (valid) {
-
-            const marker =
-              L.marker(
-                [
-                  latitude,
-                  longitude
-                ]
-              ).addTo(map);
-
-
-            marker.bindPopup(
-              `
-              <strong>👤 参加者</strong>
-              <br>
-              ${sharing
-                ? "🟢 共有中"
-                : "🔴 共有停止"}
-              <br>
-              最終更新: ${updated}
-              `
-            );
-
-
-            markers[id] =
-              marker;
-
-          }
-
-
           const div =
-            document.createElement(
-              "div"
-            );
+            document.createElement("div");
 
 
-          div.className =
-            "player";
+          div.className = "player";
 
 
           div.innerHTML = `
 
-            <div class="player-title">
-              👤 参加者
-            </div>
+            <strong>👤 参加者</strong>
 
-            <div>
-              ${
-                sharing
-                  ? '<span class="online">🟢 共有中</span>'
-                  : '<span class="offline">🔴 共有停止</span>'
-              }
-            </div>
+            <br><br>
 
-            <div>
-              緯度：
-              ${
-                valid
-                  ? latitude
-                  : "取得なし"
-              }
-            </div>
+            <strong>UID:</strong>
+            ${escapeHtml(id)}
 
-            <div>
-              経度：
-              ${
-                valid
-                  ? longitude
-                  : "取得なし"
-              }
-            </div>
+            <br><br>
 
-            <div>
-              最終更新：
-              ${updated}
-            </div>
+            <strong>緯度:</strong>
+            ${escapeHtml(latitude)}
+
+            <br>
+
+            <strong>経度:</strong>
+            ${escapeHtml(longitude)}
+
+            <br>
+
+            <strong>位置情報の精度:</strong>
+            ${escapeHtml(accuracy)}
+
+            <br>
+
+            <strong>共有状態:</strong>
+            ${escapeHtml(sharing)}
+
+            <br>
+
+            <strong>最終更新:</strong>
+            ${escapeHtml(updated)}
+
+            <br><br>
 
             ${
-              valid
+              latitude !== "不明" &&
+              longitude !== "不明"
                 ? `
                   <a
-                    class="map-button"
+                    href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(latitude)},${encodeURIComponent(longitude)}"
                     target="_blank"
-                    href="https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}"
+                    rel="noopener noreferrer"
                   >
-                    🗺️ 地図で開く
+                    🗺️ Googleマップで見る
                   </a>
                 `
                 : ""
@@ -587,67 +416,58 @@ function loadPlayers() {
           `;
 
 
-          container.appendChild(
-            div
-          );
+          playersContainer.appendChild(div);
 
-        }
-      );
+        });
 
+      },
 
-      const validMarkers =
-        Object.values(
-          markers
-        );
+      (error) => {
 
+        console.error(error);
 
-      if (
-        validMarkers.length > 0
-      ) {
+        status.textContent =
+          "❌ 参加者情報を読み込めませんでした";
 
-        const group =
-          L.featureGroup(
-            validMarkers
-          );
+        status.className = "error";
 
 
-        map.fitBounds(
-          group.getBounds(),
-          {
-            padding: [
-              40,
-              40
-            ]
-          }
-        );
+        playersContainer.innerHTML = `
+
+          <p class="error">
+            Firebaseから参加者情報を取得できませんでした。
+          </p>
+
+          <p>
+            エラー:
+            ${escapeHtml(error.message)}
+          </p>
+
+        `;
 
       }
 
-    },
+    );
 
-    (error) => {
-
-      console.error(
-        "Firebase Database Error:",
-        error
-      );
+  }
 
 
-      document.getElementById(
-        "status"
-      ).textContent =
-        "❌ Firebase読み込みエラー\n\n" +
-        "コード: " +
-        error.code +
-        "\n" +
-        "内容: " +
-        error.message;
+  /* ================================
+     HTMLエスケープ
+     ================================= */
 
-    }
+  function escapeHtml(value) {
 
-  );
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
 
-}
+  }
 
-</script></body>
+</script>
+
+</body>
 </html>
