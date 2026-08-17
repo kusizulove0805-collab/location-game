@@ -39,241 +39,391 @@
 
     #stopButton {
       display: none;
-      background: #ddd;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>📍 Location Game</h1>
+<h1>📍 Location Game</h1>
 
-  <p>
-    このゲームでは、ゲームプレイのために<br>
-    <strong>現在地をゲーム管理者へ共有します。</strong>
-  </p>
+<p>
+  このゲームでは、ゲームプレイのために<br>
+  <strong>現在地をゲーム管理者へ共有します。</strong>
+</p>
 
-  <button id="startButton" onclick="startSharing()">
-    現在地の共有を開始
-  </button>
+<button id="startButton">
+  現在地の共有を開始
+</button>
 
-  <button id="stopButton" onclick="stopSharing()">
-    現在地の共有を停止
-  </button>
+<button id="stopButton">
+  現在地の共有を停止
+</button>
 
-  <p id="status">共有していません</p>
+<p id="status">
+  共有していません
+</p>
 
-  <div id="map"></div>
-
-
-  <!-- Firebase -->
-  <script type="module">
-
-    import { initializeApp }
-      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-
-    import {
-      getDatabase,
-      ref,
-      set,
-      remove
-    }
-      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+<div id="map"></div>
 
 
-    /*
-      Firebaseコンソールから取得した設定をここに入れる
-    */
+<script type="module">
 
-    const firebaseConfig = {
-      apiKey: "ここにAPIキー",
-      authDomain: "ここにAuthDomain",
-      databaseURL: "ここにDatabaseURL",
-      projectId: "ここにProjectID",
-      storageBucket: "ここにStorageBucket",
-      messagingSenderId: "ここにMessagingSenderId",
-      appId: "ここにAppID"
-    };
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+import {
+  getAuth,
+  signInAnonymously
+}
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+  getDatabase,
+  ref,
+  set,
+  remove
+}
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 
-    const app = initializeApp(firebaseConfig);
+/*
+================================
+Firebase設定
+================================
 
-    const database = getDatabase(app);
+Firebaseコンソール
+
+プロジェクト設定
+↓
+マイアプリ
+↓
+Webアプリ
+
+から取得した値を入れる。
+*/
+
+const firebaseConfig = {
+
+  apiKey: "ここにAPIキー",
+
+  authDomain: "ここにAuthDomain",
+
+  databaseURL: "ここにDatabaseURL",
+
+  projectId: "ここにProjectID",
+
+  storageBucket: "ここにStorageBucket",
+
+  messagingSenderId: "ここにMessagingSenderId",
+
+  appId: "ここにAppID"
+
+};
 
 
-    let watchId = null;
+const app =
+  initializeApp(firebaseConfig);
 
-    // この参加者を識別するID
-    let playerId = localStorage.getItem("playerId");
+const auth =
+  getAuth(app);
+
+const database =
+  getDatabase(app);
+
+
+let watchId = null;
+
+let playerId = null;
+
+
+/*
+================================
+匿名ログイン
+================================
+*/
+
+async function login() {
+
+  try {
+
+    const result =
+      await signInAnonymously(auth);
+
+    playerId =
+      result.user.uid;
+
+    console.log(
+      "参加者ID:",
+      playerId
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById(
+      "status"
+    ).textContent =
+      "ログインに失敗しました。";
+
+  }
+
+}
+
+
+/*
+================================
+共有開始
+================================
+*/
+
+document.getElementById(
+  "startButton"
+).addEventListener(
+  "click",
+  async function() {
 
     if (!playerId) {
-      playerId =
-        crypto.randomUUID();
 
-      localStorage.setItem(
-        "playerId",
-        playerId
-      );
+      await login();
+
+    }
+
+    if (!navigator.geolocation) {
+
+      document.getElementById(
+        "status"
+      ).textContent =
+        "位置情報に対応していません。";
+
+      return;
+
     }
 
 
-    window.startSharing = function () {
-
-      if (!navigator.geolocation) {
-
-        document.getElementById("status").textContent =
-          "このブラウザは位置情報に対応していません。";
-
-        return;
-      }
+    document.getElementById(
+      "status"
+    ).textContent =
+      "位置情報を取得しています…";
 
 
-      document.getElementById("status").textContent =
-        "位置情報を取得しています…";
+    watchId =
+      navigator.geolocation.watchPosition(
+
+        async function(position) {
+
+          const latitude =
+            position.coords.latitude;
+
+          const longitude =
+            position.coords.longitude;
 
 
-      watchId =
-        navigator.geolocation.watchPosition(
+          /*
+          Firebaseへ送信
+          */
 
-          async function(position) {
+          await set(
 
-            const latitude =
-              position.coords.latitude;
+            ref(
+              database,
+              "players/" + playerId
+            ),
 
-            const longitude =
-              position.coords.longitude;
+            {
 
+              latitude:
+                latitude,
 
-            /*
-              Firebaseへ現在地を送信
-            */
+              longitude:
+                longitude,
 
-            await set(
-              ref(
-                database,
-                "players/" + playerId
-              ),
-              {
-                latitude: latitude,
-                longitude: longitude,
-                updatedAt: Date.now()
-              }
-            );
+              updatedAt:
+                Date.now()
+
+            }
+
+          );
 
 
-            document.getElementById("status").textContent =
-              "🟢 現在地を管理者へ共有中";
+          document.getElementById(
+            "status"
+          ).textContent =
+            "🟢 現在地を管理者へ共有中";
 
 
-            /*
-              Googleマップ表示
-            */
+          /*
+          現在地をGoogleマップ表示
+          */
 
-            const mapUrl =
-              "https://www.google.com/maps?q=" +
-              latitude +
-              "," +
-              longitude +
-              "&output=embed";
-
-
-            document.getElementById("map").innerHTML =
-              `
-              <iframe
-                src="${mapUrl}"
-                width="100%"
-                height="100%"
-                style="border:0;"
-                loading="lazy">
-              </iframe>
-              `;
+          const mapUrl =
+            "https://www.google.com/maps?q=" +
+            latitude +
+            "," +
+            longitude +
+            "&output=embed";
 
 
-            /*
-              あとでここにゲームを接続
-            */
+          document.getElementById(
+            "map"
+          ).innerHTML =
 
-            startGame(
-              latitude,
-              longitude
-            );
-
-          },
-
-          function(error) {
-
-            document.getElementById("status").textContent =
-              "位置情報を取得できませんでした。";
-
-          },
-
-          {
-            enableHighAccuracy: true,
-            maximumAge: 5000,
-            timeout: 10000
-          }
-        );
+            `
+            <iframe
+              src="${mapUrl}"
+              width="100%"
+              height="100%"
+              style="border:0;"
+              loading="lazy">
+            </iframe>
+            `;
 
 
-      document.getElementById("startButton")
-        .style.display = "none";
+          /*
+          後でゲームを接続
+          */
 
-      document.getElementById("stopButton")
-        .style.display = "inline-block";
-    };
+          startGame(
+            latitude,
+            longitude
+          );
+
+        },
+
+        function(error) {
+
+          document.getElementById(
+            "status"
+          ).textContent =
+            "位置情報を取得できませんでした。";
+
+        },
+
+        {
+
+          enableHighAccuracy:
+            true,
+
+          maximumAge:
+            5000,
+
+          timeout:
+            10000
+
+        }
+
+      );
 
 
-    window.stopSharing = async function () {
-
-      if (watchId !== null) {
-
-        navigator.geolocation.clearWatch(
-          watchId
-        );
-
-        watchId = null;
-      }
+    document.getElementById(
+      "startButton"
+    ).style.display =
+      "none";
 
 
-      /*
-        Firebaseから現在地を削除
-      */
+    document.getElementById(
+      "stopButton"
+    ).style.display =
+      "inline-block";
+
+  }
+);
+
+
+/*
+================================
+共有停止
+================================
+*/
+
+document.getElementById(
+  "stopButton"
+).addEventListener(
+  "click",
+  async function() {
+
+    if (watchId !== null) {
+
+      navigator.geolocation.clearWatch(
+        watchId
+      );
+
+      watchId = null;
+
+    }
+
+
+    if (playerId) {
 
       await remove(
+
         ref(
           database,
           "players/" + playerId
         )
+
       );
-
-
-      document.getElementById("status").textContent =
-        "🔴 現在地の共有を停止しました";
-
-
-      document.getElementById("startButton")
-        .style.display = "inline-block";
-
-      document.getElementById("stopButton")
-        .style.display = "none";
-    };
-
-
-    function startGame(latitude, longitude) {
-
-      console.log(
-        "ゲーム開始",
-        latitude,
-        longitude
-      );
-
-      /*
-        後でゲーム本体をここに接続する
-      */
 
     }
 
-  </script>
+
+    document.getElementById(
+      "status"
+    ).textContent =
+      "🔴 現在地の共有を停止しました";
+
+
+    document.getElementById(
+      "startButton"
+    ).style.display =
+      "inline-block";
+
+
+    document.getElementById(
+      "stopButton"
+    ).style.display =
+      "none";
+
+  }
+);
+
+
+/*
+================================
+ゲーム本体
+================================
+*/
+
+function startGame(
+  latitude,
+  longitude
+) {
+
+  console.log(
+    "ゲーム開始"
+  );
+
+  console.log(
+    "緯度:",
+    latitude
+  );
+
+  console.log(
+    "経度:",
+    longitude
+  );
+
+
+  /*
+  後で君のゲームコードを
+  ここに接続する
+  */
+
+}
+
+
+</script>
 
 </body>
 </html>
