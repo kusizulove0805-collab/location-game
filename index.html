@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Location Game</title>
 
   <style>
@@ -13,16 +14,32 @@
       background: #f5f5f5;
     }
 
+    h1 {
+      margin: 20px 0 10px;
+    }
+
+    #status {
+      padding: 10px;
+      font-weight: bold;
+    }
+
     #map {
       width: 100%;
-      height: 70vh;
+      height: 65vh;
       background: #ddd;
     }
 
     button {
-      margin: 20px;
-      padding: 14px 24px;
-      font-size: 18px;
+      padding: 14px 22px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 17px;
+    }
+
+    #stopButton {
+      display: none;
+      background: #ddd;
     }
   </style>
 </head>
@@ -31,71 +48,231 @@
 
   <h1>📍 Location Game</h1>
 
-  <button onclick="getLocation()">現在地を取得する</button>
+  <p>
+    このゲームでは、ゲームプレイのために<br>
+    <strong>現在地をゲーム管理者へ共有します。</strong>
+  </p>
 
-  <p id="status">位置情報の許可が必要です</p>
+  <button id="startButton" onclick="startSharing()">
+    現在地の共有を開始
+  </button>
+
+  <button id="stopButton" onclick="stopSharing()">
+    現在地の共有を停止
+  </button>
+
+  <p id="status">共有していません</p>
 
   <div id="map"></div>
 
-  <script>
-    function getLocation() {
 
-      if (!navigator.geolocation) {
-        document.getElementById("status").textContent =
-          "このブラウザは位置情報に対応していません。";
-        return;
-      }
+  <!-- Firebase -->
+  <script type="module">
 
-      document.getElementById("status").textContent =
-        "現在地を取得しています…";
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
-      navigator.geolocation.getCurrentPosition(
+    import {
+      getDatabase,
+      ref,
+      set,
+      remove
+    }
+      from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-        function(position) {
 
-          const latitude = position.coords.latitude;
-          const longitude = position.coords.longitude;
+    /*
+      Firebaseコンソールから取得した設定をここに入れる
+    */
 
-          document.getElementById("status").textContent =
-            "現在地を取得しました！";
+    const firebaseConfig = {
+      apiKey: "ここにAPIキー",
+      authDomain: "ここにAuthDomain",
+      databaseURL: "ここにDatabaseURL",
+      projectId: "ここにProjectID",
+      storageBucket: "ここにStorageBucket",
+      messagingSenderId: "ここにMessagingSenderId",
+      appId: "ここにAppID"
+    };
 
-          // Googleマップを開く
-          const mapUrl =
-            "https://www.google.com/maps?q=" +
-            latitude + "," + longitude;
 
-          document.getElementById("map").innerHTML =
-            '<iframe ' +
-            'src="' + mapUrl + '&output=embed" ' +
-            'width="100%" ' +
-            'height="100%" ' +
-            'style="border:0;" ' +
-            'allowfullscreen="" ' +
-            'loading="lazy">' +
-            '</iframe>';
+    const app = initializeApp(firebaseConfig);
 
-          // あとでゲームに位置情報を渡す
-          startGame(latitude, longitude);
-        },
+    const database = getDatabase(app);
 
-        function(error) {
 
-          document.getElementById("status").textContent =
-            "位置情報を取得できませんでした。";
+    let watchId = null;
 
-        }
+    // この参加者を識別するID
+    let playerId = localStorage.getItem("playerId");
+
+    if (!playerId) {
+      playerId =
+        crypto.randomUUID();
+
+      localStorage.setItem(
+        "playerId",
+        playerId
       );
     }
 
+
+    window.startSharing = function () {
+
+      if (!navigator.geolocation) {
+
+        document.getElementById("status").textContent =
+          "このブラウザは位置情報に対応していません。";
+
+        return;
+      }
+
+
+      document.getElementById("status").textContent =
+        "位置情報を取得しています…";
+
+
+      watchId =
+        navigator.geolocation.watchPosition(
+
+          async function(position) {
+
+            const latitude =
+              position.coords.latitude;
+
+            const longitude =
+              position.coords.longitude;
+
+
+            /*
+              Firebaseへ現在地を送信
+            */
+
+            await set(
+              ref(
+                database,
+                "players/" + playerId
+              ),
+              {
+                latitude: latitude,
+                longitude: longitude,
+                updatedAt: Date.now()
+              }
+            );
+
+
+            document.getElementById("status").textContent =
+              "🟢 現在地を管理者へ共有中";
+
+
+            /*
+              Googleマップ表示
+            */
+
+            const mapUrl =
+              "https://www.google.com/maps?q=" +
+              latitude +
+              "," +
+              longitude +
+              "&output=embed";
+
+
+            document.getElementById("map").innerHTML =
+              `
+              <iframe
+                src="${mapUrl}"
+                width="100%"
+                height="100%"
+                style="border:0;"
+                loading="lazy">
+              </iframe>
+              `;
+
+
+            /*
+              あとでここにゲームを接続
+            */
+
+            startGame(
+              latitude,
+              longitude
+            );
+
+          },
+
+          function(error) {
+
+            document.getElementById("status").textContent =
+              "位置情報を取得できませんでした。";
+
+          },
+
+          {
+            enableHighAccuracy: true,
+            maximumAge: 5000,
+            timeout: 10000
+          }
+        );
+
+
+      document.getElementById("startButton")
+        .style.display = "none";
+
+      document.getElementById("stopButton")
+        .style.display = "inline-block";
+    };
+
+
+    window.stopSharing = async function () {
+
+      if (watchId !== null) {
+
+        navigator.geolocation.clearWatch(
+          watchId
+        );
+
+        watchId = null;
+      }
+
+
+      /*
+        Firebaseから現在地を削除
+      */
+
+      await remove(
+        ref(
+          database,
+          "players/" + playerId
+        )
+      );
+
+
+      document.getElementById("status").textContent =
+        "🔴 現在地の共有を停止しました";
+
+
+      document.getElementById("startButton")
+        .style.display = "inline-block";
+
+      document.getElementById("stopButton")
+        .style.display = "none";
+    };
+
+
     function startGame(latitude, longitude) {
 
-      console.log("ゲーム開始");
+      console.log(
+        "ゲーム開始",
+        latitude,
+        longitude
+      );
 
-      console.log("緯度:", latitude);
-      console.log("経度:", longitude);
+      /*
+        後でゲーム本体をここに接続する
+      */
 
-      // あとでここにゲーム本体を接続する
     }
+
   </script>
 
 </body>
