@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ゲーム管理者</title>
+
+  <title>Location Game - 管理者</title>
 
   <style>
     body {
@@ -13,8 +14,8 @@
     }
 
     header {
-      padding: 15px;
       background: white;
+      padding: 15px;
       text-align: center;
     }
 
@@ -23,10 +24,16 @@
       margin: 30px auto;
       padding: 20px;
       background: white;
-      border-radius: 10px;
+      border-radius: 12px;
     }
 
-    input, button {
+    #game {
+      display: none;
+      padding: 15px;
+    }
+
+    input,
+    button {
       width: 100%;
       box-sizing: border-box;
       padding: 12px;
@@ -34,23 +41,24 @@
       font-size: 16px;
     }
 
-    #game {
-      display: none;
-    }
-
     #players {
-      padding: 15px;
       background: white;
+      padding: 15px;
+      border-radius: 12px;
     }
 
     .player {
-      padding: 10px;
+      padding: 15px 5px;
       border-bottom: 1px solid #ddd;
     }
 
-    .map-link {
+    a {
       display: inline-block;
-      margin-top: 5px;
+      margin-top: 8px;
+    }
+
+    #status {
+      font-weight: bold;
     }
   </style>
 </head>
@@ -62,21 +70,23 @@
 </header>
 
 
-<!-- ログイン画面 -->
+<!-- 管理者ログイン -->
 
 <div id="login">
 
-  <h2>管理者ログイン</h2>
+  <h2>🔐 管理者ログイン</h2>
 
   <input
     id="email"
     type="email"
-    placeholder="メールアドレス">
+    placeholder="メールアドレス"
+  >
 
   <input
     id="password"
     type="password"
-    placeholder="パスワード">
+    placeholder="パスワード"
+  >
 
   <button id="loginButton">
     ログイン
@@ -87,12 +97,15 @@
 </div>
 
 
-<!-- 管理者画面 -->
+<!-- 管理画面 -->
 
 <div id="game">
 
+  <p id="status">
+    📡 参加者情報を読み込んでいます…
+  </p>
+
   <div id="players">
-    読み込み中…
   </div>
 
 </div>
@@ -100,50 +113,49 @@
 
 <script type="module">
 
-import {
-  initializeApp
-} from
-"https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
 import {
   getAuth,
   signInWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut
-} from
-"https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+  onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 import {
   getDatabase,
   ref,
   onValue
-} from
-"https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+}
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 
-/*
-================================
-Firebase設定
-================================
-
-index.htmlと同じ設定を入れる
-*/
+/* ================================
+   Firebase設定
+   ================================ */
 
 const firebaseConfig = {
 
-  apiKey: "ここにAPIキー",
+  apiKey: "AIzaSyCEqCLbtEA4PDlSJQVRoPQM_L_nNPalVkI",
 
-  authDomain: "ここにAuthDomain",
+  authDomain:
+    "location-game-89add.firebaseapp.com",
 
-  databaseURL: "ここにDatabaseURL",
+  databaseURL:
+    "https://location-game-89add-default-rtdb.asia-southeast1.firebasedatabase.app",
 
-  projectId: "ここにProjectID",
+  projectId:
+    "location-game-89add",
 
-  storageBucket: "ここにStorageBucket",
+  storageBucket:
+    "location-game-89add.firebasestorage.app",
 
-  messagingSenderId: "ここにMessagingSenderId",
+  messagingSenderId:
+    "615313457283",
 
-  appId: "ここにAppID"
+  appId:
+    "1:615313457283:web:6fb6ac8a531a757ee19bb6"
 
 };
 
@@ -158,11 +170,9 @@ const database =
   getDatabase(app);
 
 
-/*
-================================
-ログイン
-================================
-*/
+/* ================================
+   管理者ログイン
+   ================================ */
 
 document
   .getElementById("loginButton")
@@ -171,13 +181,30 @@ document
     async function() {
 
       const email =
-        document.getElementById("email").value;
+        document.getElementById(
+          "email"
+        ).value;
 
       const password =
-        document.getElementById("password").value;
+        document.getElementById(
+          "password"
+        ).value;
 
       const status =
-        document.getElementById("loginStatus");
+        document.getElementById(
+          "loginStatus"
+        );
+
+
+      if (!email || !password) {
+
+        status.textContent =
+          "メールアドレスとパスワードを入力してください。";
+
+        return;
+
+      }
+
 
       try {
 
@@ -188,14 +215,14 @@ document
         );
 
         status.textContent =
-          "ログインしました。";
+          "ログイン成功！";
 
       } catch (error) {
 
         console.error(error);
 
         status.textContent =
-          "ログインできませんでした。";
+          "ログインに失敗しました。";
 
       }
 
@@ -203,40 +230,40 @@ document
   );
 
 
-/*
-================================
-ログイン状態確認
-================================
-*/
+/* ================================
+   ログイン状態
+   ================================ */
 
 onAuthStateChanged(
   auth,
   function(user) {
 
-    if (user) {
-
-      document.getElementById(
-        "login"
-      ).style.display = "none";
-
-      document.getElementById(
-        "game"
-      ).style.display = "block";
-
-
-      loadPlayers();
-
+    if (!user) {
+      return;
     }
+
+
+    document.getElementById(
+      "login"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "game"
+    ).style.display =
+      "block";
+
+
+    loadPlayers();
 
   }
 );
 
 
-/*
-================================
-参加者データ取得
-================================
-*/
+/* ================================
+   参加者情報
+   ================================ */
 
 function loadPlayers() {
 
@@ -251,8 +278,13 @@ function loadPlayers() {
     playersRef,
     function(snapshot) {
 
-      const players =
+      const data =
         snapshot.val() || {};
+
+
+      const ids =
+        Object.keys(data);
+
 
       const container =
         document.getElementById(
@@ -260,19 +292,30 @@ function loadPlayers() {
         );
 
 
-      const ids =
-        Object.keys(players);
+      document.getElementById(
+        "status"
+      ).textContent =
+        `🟢 現在参加中：${ids.length}人`;
 
 
-      container.innerHTML =
-        `<h2>参加者：${ids.length}人</h2>`;
+      container.innerHTML = "";
+
+
+      if (ids.length === 0) {
+
+        container.innerHTML =
+          "<p>現在参加者はいません。</p>";
+
+        return;
+
+      }
 
 
       ids.forEach(
         function(id) {
 
           const player =
-            players[id];
+            data[id];
 
 
           const latitude =
@@ -281,11 +324,12 @@ function loadPlayers() {
           const longitude =
             player.longitude;
 
-
-          const time =
-            new Date(
-              player.updatedAt
-            ).toLocaleString();
+          const updated =
+            player.updatedAt
+              ? new Date(
+                  player.updatedAt
+                ).toLocaleString()
+              : "不明";
 
 
           const div =
@@ -302,25 +346,24 @@ function loadPlayers() {
 
             <strong>👤 参加者</strong>
 
-            <br>
+            <br><br>
 
-            📍 緯度：
+            緯度：
             ${latitude}
 
             <br>
 
-            📍 経度：
+            経度：
             ${longitude}
 
             <br>
 
-            🕒 更新：
-            ${time}
+            更新：
+            ${updated}
 
             <br>
 
             <a
-              class="map-link"
               href="https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}"
               target="_blank"
             >
