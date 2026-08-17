@@ -56,6 +56,14 @@
       font-weight: bold;
     }
 
+    .info {
+      background: white;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 12px;
+      word-break: break-all;
+    }
+
     .error {
       color: #c00;
       font-weight: bold;
@@ -101,8 +109,35 @@
 
 </div>
 
+
 <!-- 管理画面 -->
 <div id="game">
+
+  <div class="info">
+
+    <h3>🔐 認証確認</h3>
+
+    <p>
+      <strong>現在のUID：</strong><br>
+      <span id="currentUid">確認中…</span>
+    </p>
+
+    <p>
+      <strong>メールアドレス：</strong><br>
+      <span id="currentEmail">確認中…</span>
+    </p>
+
+    <p>
+      <strong>認証方式：</strong><br>
+      <span id="currentProvider">確認中…</span>
+    </p>
+
+    <p>
+      <strong>管理者UIDとの一致：</strong><br>
+      <span id="uidCheck">確認中…</span>
+    </p>
+
+  </div>
 
   <p id="status"></p>
 
@@ -113,6 +148,7 @@
   <div id="players"></div>
 
 </div>
+
 
 <script type="module">
 
@@ -135,7 +171,7 @@
 
   /* ================================
      Firebase設定
-     ================================= */
+     ================================ */
 
   const firebaseConfig = {
     apiKey: "AIzaSyCEqCLbtEA4PDlSJQVRoPQM_L_nNPalVkI",
@@ -156,318 +192,72 @@
 
 
   /* ================================
+     管理者UID
+     ================================ */
+
+  const ADMIN_UID =
+    "qfLt9D4EKwdRfOhZpjo0BiqDJJM2";
+
+
+  /* ================================
      HTML要素
-     ================================= */
+     ================================ */
 
-  const login = document.getElementById("login");
-  const game = document.getElementById("game");
+  const login =
+    document.getElementById("login");
 
-  const emailInput = document.getElementById("email");
-  const passwordInput = document.getElementById("password");
+  const game =
+    document.getElementById("game");
 
-  const loginButton = document.getElementById("loginButton");
-  const logoutButton = document.getElementById("logoutButton");
+  const emailInput =
+    document.getElementById("email");
 
-  const loginStatus = document.getElementById("loginStatus");
+  const passwordInput =
+    document.getElementById("password");
 
-  const status = document.getElementById("status");
-  const playersContainer = document.getElementById("players");
+  const loginButton =
+    document.getElementById("loginButton");
 
+  const logoutButton =
+    document.getElementById("logoutButton");
 
-  /* ================================
-     管理者ログイン
-     ================================= */
+  const loginStatus =
+    document.getElementById("loginStatus");
 
-  loginButton.addEventListener("click", async () => {
+  const status =
+    document.getElementById("status");
 
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
+  const playersContainer =
+    document.getElementById("players");
 
-    if (!email || !password) {
+  const currentUid =
+    document.getElementById("currentUid");
 
-      loginStatus.textContent =
-        "メールアドレスとパスワードを入力してください。";
+  const currentEmail =
+    document.getElementById("currentEmail");
 
-      loginStatus.className = "error";
+  const currentProvider =
+    document.getElementById("currentProvider");
 
-      return;
-    }
-
-
-    loginButton.disabled = true;
-
-    loginStatus.textContent =
-      "ログインしています…";
-
-    loginStatus.className = "";
-
-
-    try {
-
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      loginStatus.textContent =
-        "ログイン成功！";
-
-      loginStatus.className = "success";
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      loginStatus.textContent =
-        "ログインに失敗しました: " + error.message;
-
-      loginStatus.className = "error";
-
-      loginButton.disabled = false;
-
-    }
-
-  });
+  const uidCheck =
+    document.getElementById("uidCheck");
 
 
   /* ================================
-     ログアウト
-     ================================= */
+     ログイン
+     ================================ */
 
-  logoutButton.addEventListener("click", async () => {
+  loginButton.addEventListener(
+    "click",
+    async () => {
 
-    try {
+      const email =
+        emailInput.value.trim();
 
-      await signOut(auth);
+      const password =
+        passwordInput.value;
 
-    } catch (error) {
 
-      console.error(error);
+      if (!email || !password) {
 
-    }
-
-  });
-
-
-  /* ================================
-     ログイン状態監視
-     ================================= */
-
-  onAuthStateChanged(auth, (user) => {
-
-    /*
-     * ログインしていない場合
-     * → 参加者情報を絶対に読み込まない
-     */
-
-    if (!user) {
-
-      login.style.display = "block";
-      game.style.display = "none";
-
-      playersContainer.innerHTML = "";
-
-      status.textContent = "";
-
-      return;
-    }
-
-
-    /*
-     * ログイン済みの場合だけ管理画面を表示
-     */
-
-    login.style.display = "none";
-    game.style.display = "block";
-
-
-    status.textContent =
-      "📡 参加者情報を読み込んでいます…";
-
-    status.className = "";
-
-
-    loadPlayers();
-
-  });
-
-
-  /* ================================
-     参加者情報読み込み
-     ================================= */
-
-  function loadPlayers() {
-
-    const playersRef =
-      ref(database, "players");
-
-
-    onValue(
-      playersRef,
-
-      (snapshot) => {
-
-        const data = snapshot.val() || {};
-
-        const ids = Object.keys(data);
-
-
-        playersContainer.innerHTML = "";
-
-
-        status.textContent =
-          `🟢 現在登録されている参加者：${ids.length}人`;
-
-        status.className = "success";
-
-
-        if (ids.length === 0) {
-
-          playersContainer.innerHTML =
-            "<p>現在の参加者はいません。</p>";
-
-          return;
-        }
-
-
-        ids.forEach((id) => {
-
-          const player = data[id] || {};
-
-
-          const latitude =
-            player.latitude ?? "不明";
-
-          const longitude =
-            player.longitude ?? "不明";
-
-          const accuracy =
-            player.accuracy ?? "不明";
-
-          const sharing =
-            player.sharing ?? "不明";
-
-          const updated =
-            player.updatedAt
-              ? new Date(player.updatedAt).toLocaleString()
-              : "不明";
-
-
-          const div =
-            document.createElement("div");
-
-
-          div.className = "player";
-
-
-          div.innerHTML = `
-
-            <strong>👤 参加者</strong>
-
-            <br><br>
-
-            <strong>UID:</strong>
-            ${escapeHtml(id)}
-
-            <br><br>
-
-            <strong>緯度:</strong>
-            ${escapeHtml(latitude)}
-
-            <br>
-
-            <strong>経度:</strong>
-            ${escapeHtml(longitude)}
-
-            <br>
-
-            <strong>位置情報の精度:</strong>
-            ${escapeHtml(accuracy)}
-
-            <br>
-
-            <strong>共有状態:</strong>
-            ${escapeHtml(sharing)}
-
-            <br>
-
-            <strong>最終更新:</strong>
-            ${escapeHtml(updated)}
-
-            <br><br>
-
-            ${
-              latitude !== "不明" &&
-              longitude !== "不明"
-                ? `
-                  <a
-                    href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(latitude)},${encodeURIComponent(longitude)}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    🗺️ Googleマップで見る
-                  </a>
-                `
-                : ""
-            }
-
-          `;
-
-
-          playersContainer.appendChild(div);
-
-        });
-
-      },
-
-      (error) => {
-
-        console.error(error);
-
-        status.textContent =
-          "❌ 参加者情報を読み込めませんでした";
-
-        status.className = "error";
-
-
-        playersContainer.innerHTML = `
-
-          <p class="error">
-            Firebaseから参加者情報を取得できませんでした。
-          </p>
-
-          <p>
-            エラー:
-            ${escapeHtml(error.message)}
-          </p>
-
-        `;
-
-      }
-
-    );
-
-  }
-
-
-  /* ================================
-     HTMLエスケープ
-     ================================= */
-
-  function escapeHtml(value) {
-
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-
-  }
-
-</script>
-
-</body>
-</html>
+        loginStatus.textContent
