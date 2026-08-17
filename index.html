@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Location Game</title>  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>地理 Game</title>  <style>
     body {
       margin: 0;
       font-family: sans-serif;
@@ -35,12 +35,11 @@
       margin: 20px;
     }
   </style></head><body><h1>📍 Location Game</h1><p>
-  ゲームを開始すると、ゲーム中の現在地が<br>
-  管理者へ共有されます。
+  ゲームを開始しよう<br>
 </p><button id="startButton">
   🎮 ゲームを開始
 </button><button id="stopButton">
-  🛑 管理者への共有を停止
+  🛑 お待ちください
 </button><p id="status">
   ゲームを開始していません
 </p><div id="gameArea">
@@ -183,7 +182,7 @@ document
       document.getElementById(
         "status"
       ).textContent =
-        "📍 位置情報を確認しています…";
+        "📍 データ確認しています…";
 
 
       /*
@@ -227,7 +226,7 @@ document
           document.getElementById(
             "status"
           ).textContent =
-            "🟢 ゲーム中・管理者へ共有中";
+            "🟢 ゲーム開始中";
 
 
           document.getElementById(
@@ -479,7 +478,7 @@ document
       document.getElementById(
         "status"
       ).textContent =
-        "🔴 管理者への共有を停止しました";
+        "🔴 ゲームの開始を停止しました";
 
 
       document.getElementById(
